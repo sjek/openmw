@@ -1,12 +1,14 @@
 #include "linuxpath.hpp"
 
-#if defined(__linux__) || defined(__FreeBSD__) || defined(__FreeBSD_kernel__)
+#if defined(__linux__) || defined(__FreeBSD__) || defined(__FreeBSD_kernel__) || defined(__OpenBSD__)
 
 #include <cstdlib>
 #include <cstring>
 #include <pwd.h>
 #include <unistd.h>
 #include <boost/filesystem/fstream.hpp>
+
+#include <components/misc/stringops.hpp>
 
 
 namespace
@@ -139,7 +141,7 @@ boost::filesystem::path LinuxPath::getInstallPath() const
             {
                 // Change drive letter to lowercase, so we could use
                 // ~/.wine/dosdevices symlinks
-                mwpath[0] = tolower(mwpath[0]);
+                mwpath[0] = Misc::StringUtils::toLower(mwpath[0]);
                 installPath /= homePath;
                 installPath /= ".wine/dosdevices/";
                 installPath /= mwpath;
@@ -157,4 +159,4 @@ boost::filesystem::path LinuxPath::getInstallPath() const
 
 } /* namespace Files */
 
-#endif /* defined(__linux__) || defined(__FreeBSD__) || defined(__FreeBSD_kernel__) */
+#endif /* defined(__linux__) || defined(__FreeBSD__) || defined(__FreeBSD_kernel__) || defined(__OpenBSD__) */

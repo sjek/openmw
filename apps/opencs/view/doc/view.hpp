@@ -22,6 +22,11 @@ namespace CSMWorld
     class UniversalId;
 }
 
+namespace CSMPrefs
+{
+    class Setting;
+}
+
 namespace CSVDoc
 {
     class ViewManager;
@@ -79,11 +84,11 @@ namespace CSVDoc
 
             void setupUi();
 
+            void setupShortcut(const char* name, QAction* action);
+
             void updateActions();
 
             void exitApplication();
-
-            void loadUserSettings();
 
             /// User preference function
             void resizeViewWidth (int width);
@@ -92,7 +97,8 @@ namespace CSVDoc
             void resizeViewHeight (int height);
 
             void updateScrollbar();
-
+            void updateWidth(bool isGrowLimit, int minSubViewWidth);
+            void createScrollArea();
         public:
 
             View (ViewManager& viewManager, CSMDoc::Document *document, int totalViews);
@@ -137,14 +143,14 @@ namespace CSVDoc
 
             void abortOperation (int type);
 
-            void updateUserSetting (const QString &, const QStringList &);
-
             void updateTitle();
 
             // called when subviews are added or removed
-            void updateSubViewIndicies (SubView *view = 0);
+            void updateSubViewIndices (SubView *view = NULL);
 
         private slots:
+
+            void settingChanged (const CSMPrefs::Setting *setting);
 
             void newView();
 

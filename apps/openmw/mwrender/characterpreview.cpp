@@ -2,11 +2,12 @@
 
 #include <iostream>
 
+#include <osg/Fog>
 #include <osg/Texture2D>
 #include <osg/Camera>
 #include <osg/PositionAttitudeTransform>
-#include <osgViewer/Viewer>
 #include <osg/LightModel>
+#include <osg/LightSource>
 #include <osgUtil/IntersectionVisitor>
 #include <osgUtil/LineSegmentIntersector>
 
@@ -30,6 +31,7 @@ namespace MWRender
     public:
         DrawOnceCallback ()
             : mRendered(false)
+            , mLastRenderedFrame(0)
         {
         }
 
@@ -38,13 +40,14 @@ namespace MWRender
             if (!mRendered)
             {
                 mRendered = true;
+
+                mLastRenderedFrame = nv->getTraversalNumber();
+                traverse(node, nv);
             }
             else
             {
                 node->setNodeMask(0);
             }
-
-            traverse(node, nv);
         }
 
         void redrawNextFrame()
@@ -52,13 +55,19 @@ namespace MWRender
             mRendered = false;
         }
 
+        unsigned int getLastRenderedFrame() const
+        {
+            return mLastRenderedFrame;
+        }
+
     private:
         bool mRendered;
+        unsigned int mLastRenderedFrame;
     };
 
-    CharacterPreview::CharacterPreview(osgViewer::Viewer* viewer, Resource::ResourceSystem* resourceSystem,
+    CharacterPreview::CharacterPreview(osg::Group* parent, Resource::ResourceSystem* resourceSystem,
                                        MWWorld::Ptr character, int sizeX, int sizeY, const osg::Vec3f& position, const osg::Vec3f& lookAt)
-        : mViewer(viewer)
+        : mParent(parent)
         , mResourceSystem(resourceSystem)
         , mPosition(position)
         , mLookAt(lookAt)
@@ -84,16 +93,21 @@ namespace MWRender
         mCamera->setViewport(0, 0, sizeX, sizeY);
         mCamera->setRenderOrder(osg::Camera::PRE_RENDER);
         mCamera->attach(osg::Camera::COLOR_BUFFER, mTexture);
-        mCamera->setGraphicsContext(mViewer->getCamera()->getGraphicsContext());
 
         mCamera->setNodeMask(Mask_RenderToTexture);
 
         osg::ref_ptr<SceneUtil::LightManager> lightManager = new SceneUtil::LightManager;
         lightManager->setStartLight(1);
-        osg::ref_ptr<osg::StateSet> stateset = new osg::StateSet;
+        osg::ref_ptr<osg::StateSet> stateset = lightManager->getOrCreateStateSet();
         stateset->setMode(GL_LIGHTING, osg::StateAttribute::ON);
         stateset->setMode(GL_NORMALIZE, osg::StateAttribute::ON);
         stateset->setMode(GL_CULL_FACE, osg::StateAttribute::ON);
+        // assign large value to effectively turn off fog
+        // shaders don't respect glDisable(GL_FOG)
+        osg::ref_ptr<osg::Fog> fog (new osg::Fog);
+        fog->setStart(10000000);
+        fog->setEnd(10000000);
+        stateset->setAttributeAndModes(fog, osg::StateAttribute::OFF|osg::StateAttribute::OVERRIDE);
 
         osg::ref_ptr<osg::LightModel> lightmodel = new osg::LightModel;
         lightmodel->setAmbientIntensity(osg::Vec4(0.25, 0.25, 0.25, 1.0));
@@ -115,7 +129,6 @@ namespace MWRender
 
         lightSource->setStateSetModes(*stateset, osg::StateAttribute::ON);
 
-        lightManager->setStateSet(stateset);
         lightManager->addChild(lightSource);
 
         mCamera->addChild(lightManager);
@@ -126,14 +139,15 @@ namespace MWRender
         mDrawOnceCallback = new DrawOnceCallback;
         mCamera->addUpdateCallback(mDrawOnceCallback);
 
-        mViewer->getSceneData()->asGroup()->addChild(mCamera);
+        mParent->addChild(mCamera);
 
         mCharacter.mCell = NULL;
     }
 
     CharacterPreview::~CharacterPreview ()
     {
-        mViewer->getSceneData()->asGroup()->removeChild(mCamera);
+        mCamera->removeChildren(0, mCamera->getNumChildren());
+        mParent->removeChild(mCamera);
     }
 
     int CharacterPreview::getTextureWidth() const
@@ -157,11 +171,10 @@ namespace MWRender
 
     void CharacterPreview::rebuild()
     {
-        delete mAnimation;
-        mAnimation = NULL;
+        mAnimation.reset(NULL);
 
-        mAnimation = new NpcAnimation(mCharacter, mNode, mResourceSystem, true, true,
-                                      (renderHeadOnly() ? NpcAnimation::VM_HeadOnly : NpcAnimation::VM_Normal));
+        mAnimation.reset(new NpcAnimation(mCharacter, mNode, mResourceSystem, true, true,
+                                      (renderHeadOnly() ? NpcAnimation::VM_HeadOnly : NpcAnimation::VM_Normal)));
 
         onSetup();
 
@@ -177,8 +190,8 @@ namespace MWRender
     // --------------------------------------------------------------------------------------------------
 
 
-    InventoryPreview::InventoryPreview(osgViewer::Viewer* viewer, Resource::ResourceSystem* resourceSystem, MWWorld::Ptr character)
-        : CharacterPreview(viewer, resourceSystem, character, 512, 1024, osg::Vec3f(0, 700, 71), osg::Vec3f(0,0,71))
+    InventoryPreview::InventoryPreview(osg::Group* parent, Resource::ResourceSystem* resourceSystem, MWWorld::Ptr character)
+        : CharacterPreview(parent, resourceSystem, character, 512, 1024, osg::Vec3f(0, 700, 71), osg::Vec3f(0,0,71))
     {
     }
 
@@ -187,14 +200,14 @@ namespace MWRender
         sizeX = std::max(sizeX, 0);
         sizeY = std::max(sizeY, 0);
 
-        mCamera->setViewport(0, 0, std::min(mSizeX, sizeX), std::min(mSizeY, sizeY));
+        mCamera->setViewport(0, mSizeY-sizeY, std::min(mSizeX, sizeX), std::min(mSizeY, sizeY));
 
         redraw();
     }
 
     void InventoryPreview::update()
     {
-        if (!mAnimation)
+        if (!mAnimation.get())
             return;
 
         mAnimation->showWeapons(true);
@@ -262,9 +275,19 @@ namespace MWRender
 
     int InventoryPreview::getSlotSelected (int posX, int posY)
     {
-        osg::ref_ptr<osgUtil::LineSegmentIntersector> intersector (new osgUtil::LineSegmentIntersector(osgUtil::Intersector::WINDOW, posX, posY));
-        intersector->setIntersectionLimit(osgUtil::LineSegmentIntersector::LIMIT_ONE);
+        float projX = (posX / mCamera->getViewport()->width()) * 2 - 1.f;
+        float projY = (posY / mCamera->getViewport()->height()) * 2 - 1.f;
+        // With Intersector::WINDOW, the intersection ratios are slightly inaccurate. Seems to be a
+        // precision issue - compiling with OSG_USE_FLOAT_MATRIX=0, Intersector::WINDOW works ok.
+        // Using Intersector::PROJECTION results in better precision because the start/end points and the model matrices
+        // don't go through as many transformations.
+        osg::ref_ptr<osgUtil::LineSegmentIntersector> intersector (new osgUtil::LineSegmentIntersector(osgUtil::Intersector::PROJECTION, projX, projY));
+
+        intersector->setIntersectionLimit(osgUtil::LineSegmentIntersector::LIMIT_NEAREST);
         osgUtil::IntersectionVisitor visitor(intersector);
+        visitor.setTraversalMode(osg::NodeVisitor::TRAVERSE_ACTIVE_CHILDREN);
+        // Set the traversal number from the last draw, so that the frame switch used for RigGeometry double buffering works correctly
+        visitor.setTraversalNumber(mDrawOnceCallback->getLastRenderedFrame());
 
         osg::Node::NodeMask nodeMask = mCamera->getNodeMask();
         mCamera->setNodeMask(~0);
@@ -287,7 +310,7 @@ namespace MWRender
     void InventoryPreview::onSetup()
     {
         osg::Vec3f scale (1.f, 1.f, 1.f);
-        mCharacter.getClass().adjustScale(mCharacter, scale);
+        mCharacter.getClass().adjustScale(mCharacter, scale, true);
 
         mNode->setScale(scale);
 
@@ -296,8 +319,8 @@ namespace MWRender
 
     // --------------------------------------------------------------------------------------------------
 
-    RaceSelectionPreview::RaceSelectionPreview(osgViewer::Viewer* viewer, Resource::ResourceSystem* resourceSystem)
-        : CharacterPreview(viewer, resourceSystem, MWMechanics::getPlayer(),
+    RaceSelectionPreview::RaceSelectionPreview(osg::Group* parent, Resource::ResourceSystem* resourceSystem)
+        : CharacterPreview(parent, resourceSystem, MWMechanics::getPlayer(),
             512, 512, osg::Vec3f(0, 125, 8), osg::Vec3f(0,0,8))
         , mBase (*mCharacter.get<ESM::NPC>()->mBase)
         , mRef(&mBase)
@@ -342,10 +365,10 @@ namespace MWRender
             traverse(node, nv);
 
             // Now update camera utilizing the updated head position
-            osg::MatrixList mats = mNodeToFollow->getWorldMatrices();
-            if (!mats.size())
+            osg::NodePathList nodepaths = mNodeToFollow->getParentalNodePaths();
+            if (nodepaths.empty())
                 return;
-            osg::Matrix worldMat = mats[0];
+            osg::Matrix worldMat = osg::computeLocalToWorld(nodepaths[0]);
             osg::Vec3 headOffset = worldMat.getTrans();
 
             cam->setViewMatrixAsLookAt(headOffset + mPosOffset, headOffset + mLookAtOffset, osg::Vec3(0,0,1));

@@ -17,14 +17,12 @@ namespace MWMechanics
 
     /// tests actor's proximity to a closed door by default
     bool proximityToDoor(const MWWorld::Ptr& actor,
-                         float minSqr = MIN_DIST_TO_DOOR_SQUARED,
-                         bool closed = true);
+                         float minSqr = MIN_DIST_TO_DOOR_SQUARED);
 
     /// Returns door pointer within range. No guarentee is given as too which one
     /** \return Pointer to the door, or NULL if none exists **/
     MWWorld::Ptr getNearbyDoor(const MWWorld::Ptr& actor,
-                         float minSqr = MIN_DIST_TO_DOOR_SQUARED,
-                         bool closed = true);
+                         float minSqr = MIN_DIST_TO_DOOR_SQUARED);
 
     class ObstacleCheck
     {
@@ -38,7 +36,7 @@ namespace MWMechanics
 
             // Returns true if there is an obstacle and an evasive action
             // should be taken
-            bool check(const MWWorld::Ptr& actor, float duration);
+            bool check(const MWWorld::Ptr& actor, float duration, float scaleMinimumDistance = 1.0f);
 
             // change direction to try to fix "stuck" actor
             void takeEvasiveAction(MWMechanics::Movement& actorMovement);
@@ -65,7 +63,7 @@ namespace MWMechanics
             float mDistSameSpot; // take account of actor's speed
             int mEvadeDirectionIndex;
 
-            void chooseEvasionDirection(bool samePosition);
+            void chooseEvasionDirection();
     };
 }
 

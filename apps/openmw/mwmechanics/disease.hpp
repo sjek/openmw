@@ -6,13 +6,14 @@
 #include "../mwbase/windowmanager.hpp"
 #include "../mwbase/environment.hpp"
 #include "../mwbase/world.hpp"
+
 #include "../mwworld/ptr.hpp"
 #include "../mwworld/class.hpp"
 #include "../mwworld/esmstore.hpp"
+
 #include "spells.hpp"
 #include "creaturestats.hpp"
 #include "actorutil.hpp"
-
 
 namespace MWMechanics
 {
@@ -34,8 +35,7 @@ namespace MWMechanics
         Spells& spells = carrier.getClass().getCreatureStats(carrier).getSpells();
         for (Spells::TIterator it = spells.begin(); it != spells.end(); ++it)
         {
-            const ESM::Spell* spell = MWBase::Environment::get().getWorld()->getStore().get<ESM::Spell>().find(it->first);
-
+            const ESM::Spell* spell = it->first;
             if (actor.getClass().getCreatureStats(actor).getSpells().hasSpell(spell->mId))
                 continue;
 

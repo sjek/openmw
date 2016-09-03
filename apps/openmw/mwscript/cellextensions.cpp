@@ -49,7 +49,7 @@ namespace MWScript
                     world->getPlayer().setTeleported(true);
                     if (world->findExteriorPosition(cell, pos))
                     {
-                        world->changeToExteriorCell(pos);
+                        world->changeToExteriorCell(pos, true);
                         world->fixPosition(world->getPlayerPtr());
                     }
                     else
@@ -57,7 +57,7 @@ namespace MWScript
                         // Change to interior even if findInteriorPosition()
                         // yields false. In this case position will be zero-point.
                         world->findInteriorPosition(cell, pos);
-                        world->changeToInteriorCell(cell, pos);
+                        world->changeToInteriorCell(cell, pos, true);
                     }
                 }
         };
@@ -82,7 +82,7 @@ namespace MWScript
 
                     pos.rot[0] = pos.rot[1] = pos.rot[2] = 0;
 
-                    world->changeToExteriorCell (pos);
+                    world->changeToExteriorCell (pos, true);
                     world->fixPosition(world->getPlayerPtr());
                 }
         };
@@ -123,7 +123,7 @@ namespace MWScript
                     const MWWorld::CellStore *cell = MWMechanics::getPlayer().getCell();
 
                     std::string current = MWBase::Environment::get().getWorld()->getCellName(cell);
-                    Misc::StringUtils::toLower(current);
+                    Misc::StringUtils::lowerCaseInPlace(current);
 
                     bool match = current.length()>=name.length() &&
                         current.substr (0, name.length())==name;
@@ -144,7 +144,9 @@ namespace MWScript
                         return;
                     }
                     MWWorld::CellStore *cell = MWMechanics::getPlayer().getCell();
-                    if (cell->getCell()->hasWater())
+                    if (cell->isExterior())
+                        runtime.push(0.f); // vanilla oddity, return 0 even though water is actually at -1
+                    else if (cell->getCell()->hasWater())
                         runtime.push (cell->getWaterLevel());
                     else
                         runtime.push (-std::numeric_limits<float>::max());

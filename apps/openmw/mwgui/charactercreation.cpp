@@ -1,5 +1,7 @@
 #include "charactercreation.hpp"
 
+#include <components/fallback/fallback.hpp>
+
 #include "../mwbase/environment.hpp"
 #include "../mwbase/soundmanager.hpp"
 #include "../mwbase/mechanicsmanager.hpp"
@@ -10,7 +12,6 @@
 #include "../mwmechanics/actorutil.hpp"
 
 #include "../mwworld/class.hpp"
-#include "../mwworld/fallback.hpp"
 #include "../mwworld/esmstore.hpp"
 
 #include "textinput.hpp"
@@ -32,7 +33,7 @@ namespace
     const ESM::Class::Specialization mSpecializations[3]={ESM::Class::Combat, ESM::Class::Magic, ESM::Class::Stealth}; // The specialization for each answer
     Step sGenerateClassSteps(int number) {
         number++;
-        const MWWorld::Fallback* fallback=MWBase::Environment::get().getWorld()->getFallback();
+        const Fallback::Map* fallback=MWBase::Environment::get().getWorld()->getFallback();
         Step step = {fallback->getFallbackString("Question_"+MyGUI::utility::toString(number)+"_Question"),
         {fallback->getFallbackString("Question_"+MyGUI::utility::toString(number)+"_AnswerOne"),
         fallback->getFallbackString("Question_"+MyGUI::utility::toString(number)+"_AnswerTwo"),
@@ -61,8 +62,8 @@ namespace
 namespace MWGui
 {
 
-    CharacterCreation::CharacterCreation(osgViewer::Viewer* viewer, Resource::ResourceSystem* resourceSystem)
-        : mViewer(viewer)
+    CharacterCreation::CharacterCreation(osg::Group* parent, Resource::ResourceSystem* resourceSystem)
+        : mParent(parent)
         , mResourceSystem(resourceSystem)
         , mNameDialog(0)
         , mRaceDialog(0)
@@ -151,7 +152,7 @@ namespace MWGui
                 case GM_Race:
                     MWBase::Environment::get().getWindowManager()->removeDialog(mRaceDialog);
                     mRaceDialog = 0;
-                    mRaceDialog = new RaceDialog(mViewer, mResourceSystem);
+                    mRaceDialog = new RaceDialog(mParent, mResourceSystem);
                     mRaceDialog->setNextButtonShow(mCreationStage >= CSE_RaceChosen);
                     mRaceDialog->setRaceId(mPlayerRaceId);
                     mRaceDialog->eventDone += MyGUI::newDelegate(this, &CharacterCreation::onRaceDialogDone);
@@ -176,7 +177,7 @@ namespace MWGui
                     mPickClassDialog = 0;
                     mPickClassDialog = new PickClassDialog();
                     mPickClassDialog->setNextButtonShow(mCreationStage >= CSE_ClassChosen);
-                    mPickClassDialog->setClassId(mPlayerClass.mName);
+                    mPickClassDialog->setClassId(mPlayerClass.mId);
                     mPickClassDialog->eventDone += MyGUI::newDelegate(this, &CharacterCreation::onPickClassDialogDone);
                     mPickClassDialog->eventBack += MyGUI::newDelegate(this, &CharacterCreation::onPickClassDialogBack);
                     mPickClassDialog->setVisible(true);

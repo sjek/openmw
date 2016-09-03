@@ -5,9 +5,15 @@
 
 #include "../widget/modebutton.hpp"
 
+class QDragEnterEvent;
+class QDropEvent;
+class QDragMoveEvent;
+class QPoint;
+
 namespace CSVRender
 {
     class WorldspaceWidget;
+    struct WorldspaceHitResult;
     class TagBase;
 
     class EditMode : public CSVWidget::ModeButton
@@ -30,41 +36,46 @@ namespace CSVRender
 
             virtual void activate (CSVWidget::SceneToolbar *toolbar);
 
-            /// Default-implementation: Do nothing.
-            virtual void updateUserSetting (const QString& name, const QStringList& value);
-
             /// Default-implementation: Ignored.
             virtual void setEditLock (bool locked);
 
             /// Default-implementation: Ignored.
-            virtual void primaryEditPressed (osg::ref_ptr<TagBase> tag);
+            virtual void primaryEditPressed (const WorldspaceHitResult& hit);
 
             /// Default-implementation: Ignored.
-            virtual void secondaryEditPressed (osg::ref_ptr<TagBase> tag);
+            virtual void secondaryEditPressed (const WorldspaceHitResult& hit);
 
             /// Default-implementation: Ignored.
-            virtual void selectPressed (osg::ref_ptr<TagBase> tag);
+            virtual void primarySelectPressed (const WorldspaceHitResult& hit);
+
+            /// Default-implementation: Ignored.
+            virtual void secondarySelectPressed (const WorldspaceHitResult& hit);
 
             /// Default-implementation: ignore and return false
             ///
             /// \return Drag accepted?
-            virtual bool primaryEditStartDrag (osg::ref_ptr<TagBase> tag);
+            virtual bool primaryEditStartDrag (const QPoint& pos);
 
             /// Default-implementation: ignore and return false
             ///
             /// \return Drag accepted?
-            virtual bool secondaryEditStartDrag (osg::ref_ptr<TagBase> tag);
+            virtual bool secondaryEditStartDrag (const QPoint& pos);
 
             /// Default-implementation: ignore and return false
             ///
             /// \return Drag accepted?
-            virtual bool selectStartDrag (osg::ref_ptr<TagBase> tag);
+            virtual bool primarySelectStartDrag (const QPoint& pos);
+
+            /// Default-implementation: ignore and return false
+            ///
+            /// \return Drag accepted?
+            virtual bool secondarySelectStartDrag (const QPoint& pos);
 
             /// Default-implementation: ignored
-            virtual void drag (int diffX, int diffY, double speedFactor);
+            virtual void drag (const QPoint& pos, int diffX, int diffY, double speedFactor);
 
             /// Default-implementation: ignored
-            virtual void dragCompleted();
+            virtual void dragCompleted(const QPoint& pos);
 
             /// Default-implementation: ignored
             ///
@@ -74,6 +85,18 @@ namespace CSVRender
 
             /// Default-implementation: ignored
             virtual void dragWheel (int diff, double speedFactor);
+
+            /// Default-implementation: ignored
+            virtual void dragEnterEvent (QDragEnterEvent *event);
+
+            /// Default-implementation: ignored
+            virtual void dropEvent (QDropEvent *event);
+
+            /// Default-implementation: ignored
+            virtual void dragMoveEvent (QDragMoveEvent *event);
+
+            /// Default: return -1
+            virtual int getSubMode() const;
     };
 }
 

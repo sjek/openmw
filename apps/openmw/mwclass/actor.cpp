@@ -61,11 +61,6 @@ namespace MWClass
         }
     }
 
-    bool Actor::hasToolTip(const MWWorld::Ptr& ptr) const
-    {
-        return !ptr.getClass().getCreatureStats(ptr).getAiSequence().isInCombat() || getCreatureStats(ptr).isDead();
-    }
-
     osg::Vec3f Actor::getRotationVector(const MWWorld::Ptr& ptr) const
     {
         MWMechanics::Movement &movement = getMovementSettings(ptr);
@@ -83,5 +78,9 @@ namespace MWClass
         weight -= effects.get(MWMechanics::EffectKey(ESM::MagicEffect::Feather)).getMagnitude();
         weight += effects.get(MWMechanics::EffectKey(ESM::MagicEffect::Burden)).getMagnitude();
         return (weight < 0) ? 0.0f : weight;
+    }
+
+    bool Actor::allowTelekinesis(const MWWorld::ConstPtr &ptr) const {
+        return false;
     }
 }

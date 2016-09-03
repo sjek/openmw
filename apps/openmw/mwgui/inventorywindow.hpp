@@ -6,9 +6,9 @@
 
 #include "../mwworld/ptr.hpp"
 
-namespace osgViewer
+namespace osg
 {
-    class Viewer;
+    class Group;
 }
 
 namespace Resource
@@ -37,7 +37,7 @@ namespace MWGui
     class InventoryWindow : public WindowPinnableBase
     {
         public:
-            InventoryWindow(DragAndDrop* dragAndDrop, osgViewer::Viewer* viewer, Resource::ResourceSystem* resourceSystem);
+            InventoryWindow(DragAndDrop* dragAndDrop, osg::Group* parent, Resource::ResourceSystem* resourceSystem);
 
             virtual void open();
 
@@ -126,8 +126,8 @@ namespace MWGui
 
             void adjustPanes();
 
-            /// Unequips mSelectedItem, if it is equipped, and then updates mSelectedItem in case it was re-stacked
-            void ensureSelectedItemUnequipped();
+            /// Unequips count items from mSelectedItem, if it is equipped, and then updates mSelectedItem in case the items were re-stacked
+            void ensureSelectedItemUnequipped(int count);
     };
 }
 

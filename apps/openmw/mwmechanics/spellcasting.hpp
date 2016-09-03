@@ -1,9 +1,9 @@
 #ifndef MWMECHANICS_SPELLSUCCESS_H
 #define MWMECHANICS_SPELLSUCCESS_H
 
-#include "../mwworld/ptr.hpp"
-
 #include <components/esm/loadskil.hpp>
+
+#include "../mwworld/ptr.hpp"
 
 namespace ESM
 {
@@ -81,7 +81,8 @@ namespace MWMechanics
         bool cast (const ESM::Spell* spell);
 
         /// @note mCaster must be an actor
-        bool cast (const MWWorld::Ptr& item);
+        /// @param launchProjectile If set to false, "on target" effects are directly applied instead of being launched as projectile originating from the caster.
+        bool cast (const MWWorld::Ptr& item, bool launchProjectile=true);
 
         /// @note mCaster must be an NPC
         bool cast (const ESM::Ingredient* ingredient);
@@ -90,6 +91,8 @@ namespace MWMechanics
 
         /// @note Auto detects if spell, ingredient or potion
         bool cast (const std::string& id);
+
+        void playSpellCastingEffects(const std::string &spellid);
 
         /// @note \a target can be any type of object, not just actors.
         /// @note \a caster can be any type of object, or even an empty object.

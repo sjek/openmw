@@ -20,7 +20,7 @@
 #include <components/sdlutil/imagetosurface.hpp>
 
 #include <components/resource/resourcesystem.hpp>
-#include <components/resource/texturemanager.hpp>
+#include <components/resource/scenemanager.hpp>
 
 #include <components/compiler/extensions0.hpp>
 
@@ -69,17 +69,13 @@ void OMW::Engine::executeLocalScripts()
     MWWorld::LocalScripts& localScripts = mEnvironment.getWorld()->getLocalScripts();
 
     localScripts.startIteration();
-
-    while (!localScripts.isFinished())
+    std::pair<std::string, MWWorld::Ptr> script;
+    while (localScripts.getNext(script))
     {
-        std::pair<std::string, MWWorld::Ptr> script = localScripts.getNext();
-
         MWScript::InterpreterContext interpreterContext (
             &script.second.getRefData().getLocals(), script.second);
         mEnvironment.getScriptManager()->run (script.first, interpreterContext);
     }
-
-    localScripts.setIgnore (MWWorld::Ptr());
 }
 
 void OMW::Engine::frame(float frametime)
@@ -168,9 +164,6 @@ void OMW::Engine::frame(float frametime)
         if (mEnvironment.getStateManager()->getState()!=
             MWBase::StateManager::State_NoGame)
         {
-#if 0
-            mEnvironment.getWindowManager()->wmUpdateFps(fps);
-#endif
             mEnvironment.getWindowManager()->update();
         }
 
@@ -301,8 +294,8 @@ void OMW::Engine::setSkipMenu (bool skipMenu, bool newGame)
 std::string OMW::Engine::loadSettings (Settings::Manager & settings)
 {
     // Create the settings manager and load default settings file
-    const std::string localdefault = mCfgMgr.getLocalPath().string() + "/settings-default.cfg";
-    const std::string globaldefault = mCfgMgr.getGlobalPath().string() + "/settings-default.cfg";
+    const std::string localdefault = (mCfgMgr.getLocalPath() / "settings-default.cfg").string();
+    const std::string globaldefault = (mCfgMgr.getGlobalPath() / "settings-default.cfg").string();
 
     // prefer local
     if (boost::filesystem::exists(localdefault))
@@ -313,7 +306,7 @@ std::string OMW::Engine::loadSettings (Settings::Manager & settings)
         throw std::runtime_error ("No default settings file found! Make sure the file \"settings-default.cfg\" was properly installed.");
 
     // load user settings if they exist
-    const std::string settingspath = mCfgMgr.getUserConfigPath().string() + "/settings.cfg";
+    const std::string settingspath = (mCfgMgr.getUserConfigPath() / "settings.cfg").string();
     if (boost::filesystem::exists(settingspath))
         settings.loadUser(settingspath);
 
@@ -453,13 +446,13 @@ void OMW::Engine::prepareEngine (Settings::Manager & settings)
     VFS::registerArchives(mVFS.get(), mFileCollections, mArchives, true);
 
     mResourceSystem.reset(new Resource::ResourceSystem(mVFS.get()));
-    mResourceSystem->getTextureManager()->setUnRefImageDataAfterApply(true);
-    osg::Texture::FilterMode min = osg::Texture::LINEAR_MIPMAP_NEAREST;
-    osg::Texture::FilterMode mag = osg::Texture::LINEAR;
-    if (Settings::Manager::getString("texture filtering", "General") == "trilinear")
-        min = osg::Texture::LINEAR_MIPMAP_LINEAR;
-    int maxAnisotropy = Settings::Manager::getInt("anisotropy", "General");
-    mResourceSystem->getTextureManager()->setFilterSettings(min, mag, maxAnisotropy);
+    mResourceSystem->getSceneManager()->setUnRefImageDataAfterApply(false); // keep to Off for now to allow better state sharing
+    mResourceSystem->getSceneManager()->setFilterSettings(
+        Settings::Manager::getString("texture mag filter", "General"),
+        Settings::Manager::getString("texture min filter", "General"),
+        Settings::Manager::getString("texture mipmap", "General"),
+        Settings::Manager::getInt("anisotropy", "General")
+    );
 
     // Create input and UI first to set up a bootstrapping environment for
     // showing a loading screen and keeping the window responsive while doing so
@@ -476,8 +469,8 @@ void OMW::Engine::prepareEngine (Settings::Manager & settings)
     }
 
     // find correct path to the game controller bindings
-    const std::string localdefault = mCfgMgr.getLocalPath().string() + "/gamecontrollerdb.cfg";
-    const std::string globaldefault = mCfgMgr.getGlobalPath().string() + "/gamecontrollerdb.cfg";
+    const std::string localdefault = mCfgMgr.getLocalPath().string() + "/gamecontrollerdb.txt";
+    const std::string globaldefault = mCfgMgr.getGlobalPath().string() + "/gamecontrollerdb.txt";
     std::string gameControllerdb;
     if (boost::filesystem::exists(localdefault))
         gameControllerdb = localdefault;
@@ -486,8 +479,7 @@ void OMW::Engine::prepareEngine (Settings::Manager & settings)
     else
         gameControllerdb = ""; //if it doesn't exist, pass in an empty string
 
-    // FIXME: shouldn't depend on Engine
-    MWInput::InputManager* input = new MWInput::InputManager (mWindow, mViewer, *this, keybinderUser, keybinderUserExists, gameControllerdb, mGrab);
+    MWInput::InputManager* input = new MWInput::InputManager (mWindow, mViewer, mScreenCaptureHandler, keybinderUser, keybinderUserExists, gameControllerdb, mGrab);
     mEnvironment.setInputManager (input);
 
     std::string myguiResources = (mResDir / "mygui").string();
@@ -513,10 +505,11 @@ void OMW::Engine::prepareEngine (Settings::Manager & settings)
     // Create the world
     mEnvironment.setWorld( new MWWorld::World (mViewer, rootNode, mResourceSystem.get(),
         mFileCollections, mContentFiles, mEncoder, mFallbackMap,
-        mActivationDistanceOverride, mCellName, mStartupScript));
+        mActivationDistanceOverride, mCellName, mStartupScript, mResDir.string()));
     mEnvironment.getWorld()->setupPlayer();
     input->setPlayer(&mEnvironment.getWorld()->getPlayer());
 
+    window->setStore(mEnvironment.getWorld()->getStore());
     window->initUI();
     window->renderWorldMap();
 
@@ -655,6 +648,8 @@ void OMW::Engine::go()
     }
     else if (!mSkipMenu)
     {
+        mEnvironment.getWorld()->preloadCommonAssets();
+
         // start in main menu
         mEnvironment.getWindowManager()->pushGuiMode (MWGui::GM_MainMenu);
         try
@@ -718,41 +713,6 @@ void OMW::Engine::go()
     settings.saveUser(settingspath);
 
     std::cout << "Quitting peacefully." << std::endl;
-}
-
-void OMW::Engine::activate()
-{
-    if (mEnvironment.getWindowManager()->isGuiMode())
-        return;
-
-    MWWorld::Ptr player = mEnvironment.getWorld()->getPlayerPtr();
-    const MWMechanics::NpcStats &playerStats = player.getClass().getNpcStats(player);
-    if (playerStats.isParalyzed() || playerStats.getKnockedDown())
-        return;
-
-    MWWorld::Ptr ptr = mEnvironment.getWorld()->getFacedObject();
-
-    if (ptr.isEmpty())
-        return;
-
-    if (ptr.getClass().getName(ptr) == "") // objects without name presented to user can never be activated
-        return;
-
-    if (ptr.getClass().isActor())
-    {
-        MWMechanics::CreatureStats &stats = ptr.getClass().getCreatureStats(ptr);
-
-        if (stats.getAiSequence().isInCombat() && !stats.isDead())
-            return;
-    }
-
-    mEnvironment.getWorld()->activate(ptr, mEnvironment.getWorld()->getPlayerPtr());
-}
-
-void OMW::Engine::screenshot()
-{
-    mScreenCaptureHandler->setFramesToCapture(1);
-    mScreenCaptureHandler->captureNextFrame(*mViewer);
 }
 
 void OMW::Engine::setCompileAll (bool all)

@@ -26,7 +26,7 @@ opencs_units_noqt (model/world
     universalid record commands columnbase columnimp scriptcontext cell refidcollection
     refidadapter refiddata refidadapterimp ref collectionbase refcollection columns infocollection tablemimedata cellcoordinates cellselection resources resourcesmanager scope
     pathgrid landtexture land nestedtablewrapper nestedcollection nestedcoladapterimp nestedinfocollection
-    idcompletionmanager metadata
+    idcompletionmanager metadata defaultgmsts infoselectwrapper commandmacro
     )
 
 opencs_hdrs_noqt (model/world
@@ -35,14 +35,14 @@ opencs_hdrs_noqt (model/world
 
 
 opencs_units (model/tools
-    tools reportmodel mergeoperation 
+    tools reportmodel mergeoperation
     )
 
 opencs_units_noqt (model/tools
     mandatoryid skillcheck classcheck factioncheck racecheck soundcheck regioncheck
     birthsigncheck spellcheck referencecheck referenceablecheck scriptcheck bodypartcheck
     startscriptcheck search searchoperation searchstage pathgridcheck soundgencheck magiceffectcheck
-    mergestages
+    mergestages gmstcheck topicinfocheck journalcheck
     )
 
 opencs_hdrs_noqt (model/tools
@@ -66,8 +66,8 @@ opencs_hdrs_noqt (view/doc
 
 
 opencs_units (view/world
-    table tablesubview scriptsubview util regionmapsubview tablebottombox creator genericcreator
-    cellcreator referenceablecreator startscriptcreator referencecreator scenesubview
+    table tablesubview scriptsubview util regionmapsubview tablebottombox creator genericcreator globalcreator
+    cellcreator pathgridcreator referenceablecreator startscriptcreator referencecreator scenesubview
     infocreator scriptedit dialoguesubview previewsubview regionmap dragrecordtable nestedtable
     dialoguespinbox recordbuttonbar tableeditidaction scripterrortable extendedcommandconfigurator
     )
@@ -85,16 +85,18 @@ opencs_units (view/widget
 
 opencs_units (view/render
     scenewidget worldspacewidget pagedworldspacewidget unpagedworldspacewidget
-    previewwidget editmode instancemode
+    previewwidget editmode instancemode instanceselectionmode instancemovemode
+    orbitcameramode pathgridmode selectionmode pathgridselectionmode cameracontroller
+    cellwater
     )
 
 opencs_units_noqt (view/render
-    lighting lightingday lightingnight
-    lightingbright object cell terrainstorage tagbase
+    lighting lightingday lightingnight lightingbright object cell terrainstorage tagbase
+    cellarrow cellmarker cellborder pathgrid
     )
 
 opencs_hdrs_noqt (view/render
-    elements
+    mask
     )
 
 
@@ -106,31 +108,17 @@ opencs_units_noqt (view/tools
     subviews
     )
 
-opencs_units (view/settings
-    settingwindow
-    dialog
-    page
-    view
-    booleanview
-    textview
-    listview
-    rangeview
-    resizeablestackedwidget
-    spinbox
+opencs_units (view/prefs
+    dialogue pagebase page keybindingpage
     )
 
-opencs_units_noqt (view/settings
-    frame
+opencs_units (model/prefs
+    state setting intsetting doublesetting boolsetting enumsetting coloursetting shortcut
+    shortcuteventhandler shortcutmanager shortcutsetting modifiersetting
     )
 
-opencs_units (model/settings
-    usersettings
-    setting
-    connector
-    )
-
-opencs_hdrs_noqt (model/settings
-    support
+opencs_units_noqt (model/prefs
+    category
     )
 
 opencs_units_noqt (model/filter
@@ -205,7 +193,14 @@ if(APPLE)
 endif(APPLE)
 
 target_link_libraries(openmw-cs
-    ${OPENSCENEGRAPH_LIBRARIES}
+    ${OSG_LIBRARIES}
+    ${OPENTHREADS_LIBRARIES}
+    ${OSGTEXT_LIBRARIES}
+    ${OSGUTIL_LIBRARIES}
+    ${OSGVIEWER_LIBRARIES}
+    ${OSGGA_LIBRARIES}
+    ${OSGFX_LIBRARIES}
+    ${EXTERN_OSGQT_LIBRARY}
     ${Boost_SYSTEM_LIBRARY}
     ${Boost_FILESYSTEM_LIBRARY}
     ${Boost_PROGRAM_OPTIONS_LIBRARY}
@@ -224,9 +219,6 @@ if (DESIRED_QT_VERSION MATCHES 4)
     endif()
 else()
     qt5_use_modules(openmw-cs Widgets Core Network OpenGL)
-    if (WIN32)
-        target_link_libraries(Qt5::WinMain)
-    endif()
 endif()
 
 if (WIN32)

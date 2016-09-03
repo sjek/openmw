@@ -1,9 +1,9 @@
 #ifndef GAME_MWMECHANICS_AIPACKAGE_H
 #define GAME_MWMECHANICS_AIPACKAGE_H
 
-#include "pathfinding.hpp"
 #include <components/esm/defs.hpp>
 
+#include "pathfinding.hpp"
 #include "obstacle.hpp"
 #include "aistate.hpp"
 
@@ -39,9 +39,13 @@ namespace MWMechanics
                 TypeIdEscort = 2,
                 TypeIdFollow = 3,
                 TypeIdActivate = 4,
+
+                // These 4 are not really handled as Ai Packages in the MW engine
+                // For compatibility do *not* return these in the getCurrentAiPackage script function..
                 TypeIdCombat = 5,
                 TypeIdPursue = 6,
-                TypeIdAvoidDoor = 7
+                TypeIdAvoidDoor = 7,
+                TypeIdFace = 8
             };
 
             ///Default constructor
@@ -68,6 +72,24 @@ namespace MWMechanics
 
             /// Simulates the passing of time
             virtual void fastForward(const MWWorld::Ptr& actor, AiState& state) {}
+
+            /// Get the target actor the AI is targeted at (not applicable to all AI packages, default return empty Ptr)
+            virtual MWWorld::Ptr getTarget() const;
+
+            /// Return true if having this AiPackage makes the actor side with the target in fights (default false)
+            virtual bool sideWithTarget() const;
+
+            /// Return true if the actor should follow the target through teleport doors (default false)
+            virtual bool followTargetThroughDoors() const;
+
+            /// Can this Ai package be canceled? (default true)
+            virtual bool canCancel() const;
+
+            /// Upon adding this Ai package, should the Ai Sequence attempt to cancel previous Ai packages (default true)?
+            virtual bool shouldCancelPreviousAi() const;
+
+            /// Return true if this package should repeat. Currently only used for Wander packages.
+            virtual bool getRepeat() const;
 
             bool isTargetMagicallyHidden(const MWWorld::Ptr& target);
 

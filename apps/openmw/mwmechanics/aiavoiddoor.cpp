@@ -3,15 +3,15 @@
 #include "../mwbase/world.hpp"
 #include "../mwbase/environment.hpp"
 #include "../mwbase/mechanicsmanager.hpp"
+
 #include "../mwworld/class.hpp"
+
 #include "creaturestats.hpp"
 #include "movement.hpp"
 #include "actorutil.hpp"
-
-
 #include "steering.hpp"
 
-MWMechanics::AiAvoidDoor::AiAvoidDoor(const MWWorld::Ptr& doorPtr)
+MWMechanics::AiAvoidDoor::AiAvoidDoor(const MWWorld::ConstPtr& doorPtr)
 : AiPackage(), mDuration(1), mDoorPtr(doorPtr), mAdjAngle(0)
 {
 

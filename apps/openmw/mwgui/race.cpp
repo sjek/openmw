@@ -41,9 +41,9 @@ namespace
 namespace MWGui
 {
 
-    RaceDialog::RaceDialog(osgViewer::Viewer* viewer, Resource::ResourceSystem* resourceSystem)
+    RaceDialog::RaceDialog(osg::Group* parent, Resource::ResourceSystem* resourceSystem)
       : WindowModal("openmw_chargen_race.layout")
-      , mViewer(viewer)
+      , mParent(parent)
       , mResourceSystem(resourceSystem)
       , mGenderIndex(0)
       , mFaceIndex(0)
@@ -136,13 +136,13 @@ namespace MWGui
         mPreview.reset(NULL);
         mPreviewTexture.reset(NULL);
 
-        mPreview.reset(new MWRender::RaceSelectionPreview(mViewer, mResourceSystem));
+        mPreview.reset(new MWRender::RaceSelectionPreview(mParent, mResourceSystem));
         mPreview->rebuild();
         mPreview->setAngle (mCurrentAngle);
 
         mPreviewTexture.reset(new osgMyGUI::OSGTexture(mPreview->getTexture()));
         mPreviewImage->setRenderItemTexture(mPreviewTexture.get());
-        mPreviewImage->getSubWidgetMain()->_setUVSet(MyGUI::FloatRect(0.f, 1.f, 1.f, 0.f));
+        mPreviewImage->getSubWidgetMain()->_setUVSet(MyGUI::FloatRect(0.f, 0.f, 1.f, 1.f));
 
         const ESM::NPC& proto = mPreview->getPrototype();
         setRaceId(proto.mRace);
@@ -326,8 +326,11 @@ namespace MWGui
         record.mRace = mCurrentRaceId;
         record.setIsMale(mGenderIndex == 0);
 
-        record.mHead = mAvailableHeads[mFaceIndex];
-        record.mHair = mAvailableHairs[mHairIndex];
+        if (mFaceIndex >= 0 && mFaceIndex < int(mAvailableHeads.size()))
+            record.mHead = mAvailableHeads[mFaceIndex];
+
+        if (mHairIndex >= 0 && mHairIndex < int(mAvailableHairs.size()))
+            record.mHair = mAvailableHairs[mHairIndex];
 
         try
         {

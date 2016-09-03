@@ -2,12 +2,12 @@
 
 #include <components/esm/loadcrea.hpp>
 
-#include <osg/PositionAttitudeTransform>
-
 #include <components/resource/resourcesystem.hpp>
 #include <components/resource/scenemanager.hpp>
 #include <components/sceneutil/attach.hpp>
 #include <components/sceneutil/visitor.hpp>
+#include <components/sceneutil/positionattitudetransform.hpp>
+#include <components/sceneutil/skeleton.hpp>
 
 #include "../mwbase/world.hpp"
 
@@ -76,6 +76,7 @@ void CreatureWeaponAnimation::showCarriedLeft(bool show)
 
 void CreatureWeaponAnimation::updateParts()
 {
+    mAmmunition.reset();
     mWeapon.reset();
     mShield.reset();
 
@@ -106,9 +107,11 @@ void CreatureWeaponAnimation::updatePart(PartHolderPtr& scene, int slot)
     else
         bonename = "Shield Bone";
 
-    osg::ref_ptr<osg::Node> node = mResourceSystem->getSceneManager()->createInstance(item.getClass().getModel(item));
+    osg::ref_ptr<osg::Node> node = mResourceSystem->getSceneManager()->getInstance(item.getClass().getModel(item));
     osg::ref_ptr<osg::Node> attached = SceneUtil::attach(node, mObjectRoot, bonename, bonename);
     mResourceSystem->getSceneManager()->notifyAttached(attached);
+    if (mSkeleton)
+        mSkeleton->markDirty();
 
     scene.reset(new PartHolder(attached));
 

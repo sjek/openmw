@@ -166,7 +166,7 @@ QWidget *CSVWorld::CommandDelegate::createEditor (QWidget *parent, const QStyleO
     const QModelIndex& index) const
 {
     CSMWorld::ColumnBase::Display display = getDisplayTypeFromIndex(index);
-    
+
     // This createEditor() method is called implicitly from tables.
     // For boolean values in tables use the default editor (combobox).
     // Checkboxes is looking ugly in the table view.
@@ -212,6 +212,13 @@ QWidget *CSVWorld::CommandDelegate::createEditor (QWidget *parent, const QStyleO
             return sb;
         }
 
+        case CSMWorld::ColumnBase::Display_UnsignedInteger8:
+        {
+            DialogueSpinBox *sb = new DialogueSpinBox(parent);
+            sb->setRange(0, UCHAR_MAX);
+            return sb;
+        }
+
         case CSMWorld::ColumnBase::Display_Var:
 
             return new QLineEdit(parent);
@@ -239,7 +246,7 @@ QWidget *CSVWorld::CommandDelegate::createEditor (QWidget *parent, const QStyleO
             edit->setUndoRedoEnabled (false);
             return edit;
         }
-        
+
         case CSMWorld::ColumnBase::Display_Boolean:
 
             return new QCheckBox(parent);
@@ -260,7 +267,7 @@ QWidget *CSVWorld::CommandDelegate::createEditor (QWidget *parent, const QStyleO
             widget->setMaxLength (32);
             return widget;
         }
-            
+
         default:
 
             return QStyledItemDelegate::createEditor (parent, option, index);
@@ -329,3 +336,5 @@ void CSVWorld::CommandDelegate::setEditorData (QWidget *editor, const QModelInde
     }
 
 }
+
+void CSVWorld::CommandDelegate::settingChanged (const CSMPrefs::Setting *setting) {}

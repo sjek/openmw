@@ -2,6 +2,8 @@
 
 #include <cassert>
 
+#include <OpenThreads/ScopedLock>
+
 #include <osg/PrimitiveSet>
 
 #include "defs.hpp"
@@ -122,7 +124,7 @@ osg::ref_ptr<IndexArrayType> createIndexBuffer(unsigned int flags, unsigned int 
         // West
         size_t col = 0;
         outerStep = size_t(1) << (lodDeltas[Terrain::West] + lodLevel);
-        for (size_t row = 0; row < verts-1; row += outerStep)
+        for (row = 0; row < verts-1; row += outerStep)
         {
             indices->push_back(verts*col+row+outerStep);
             indices->push_back(verts*col+row);
@@ -146,7 +148,7 @@ osg::ref_ptr<IndexArrayType> createIndexBuffer(unsigned int flags, unsigned int 
         // East
         col = verts-1;
         outerStep = size_t(1) << (lodDeltas[Terrain::East] + lodLevel);
-        for (size_t row = 0; row < verts-1; row += outerStep)
+        for (row = 0; row < verts-1; row += outerStep)
         {
             indices->push_back(verts*col+row);
             indices->push_back(verts*col+row+outerStep);
@@ -178,6 +180,7 @@ namespace Terrain
 
     osg::ref_ptr<osg::Vec2Array> BufferCache::getUVBuffer()
     {
+        OpenThreads::ScopedLock<OpenThreads::Mutex> lock(mUvBufferMutex);
         if (mUvBufferMap.find(mNumVerts) != mUvBufferMap.end())
         {
             return mUvBufferMap[mNumVerts];
@@ -193,7 +196,7 @@ namespace Terrain
             for (unsigned int row = 0; row < mNumVerts; ++row)
             {
                 uvs->push_back(osg::Vec2f(col / static_cast<float>(mNumVerts-1),
-                                          row / static_cast<float>(mNumVerts-1)));
+                                          ((mNumVerts-1) - row) / static_cast<float>(mNumVerts-1)));
             }
         }
 
@@ -206,6 +209,7 @@ namespace Terrain
 
     osg::ref_ptr<osg::DrawElements> BufferCache::getIndexBuffer(unsigned int flags)
     {
+        OpenThreads::ScopedLock<OpenThreads::Mutex> lock(mIndexBufferMutex);
         unsigned int verts = mNumVerts;
 
         if (mIndexBufferMap.find(flags) != mIndexBufferMap.end())
@@ -215,7 +219,7 @@ namespace Terrain
 
         osg::ref_ptr<osg::DrawElements> buffer;
 
-        if (verts*verts > (0xffffu))
+        if (verts*verts <= (0xffffu))
             buffer = createIndexBuffer<osg::DrawElementsUShort>(flags, verts);
         else
             buffer = createIndexBuffer<osg::DrawElementsUInt>(flags, verts);

@@ -26,6 +26,7 @@ namespace Compiler
 
         if (c=='\n')
         {
+            mStrictKeywords = false;
             mLoc.mColumn = 0;
             ++mLoc.mLine;
             mLoc.mLiteral.clear();
@@ -259,7 +260,7 @@ namespace Compiler
         return true;
     }
 
-    static const char *keywords[] =
+    static const char *sKeywords[] =
     {
         "begin", "end",
         "short", "long", "float",
@@ -294,19 +295,22 @@ namespace Compiler
             name = name.substr (1, name.size()-2);
 // allow keywords enclosed in ""
 /// \todo optionally disable
-//            cont = parser.parseName (name, loc, *this);
-//            return true;
+            if (mStrictKeywords)
+            {
+                cont = parser.parseName (name, loc, *this);
+                return true;
+            }
         }
 
         int i = 0;
 
         std::string lowerCase = Misc::StringUtils::lowerCase(name);
 
-        for (; keywords[i]; ++i)
-            if (lowerCase==keywords[i])
+        for (; sKeywords[i]; ++i)
+            if (lowerCase==sKeywords[i])
                 break;
 
-        if (keywords[i])
+        if (sKeywords[i])
         {
             cont = parser.parseKeyword (i, loc, *this);
             return true;
@@ -567,7 +571,8 @@ namespace Compiler
     Scanner::Scanner (ErrorHandler& errorHandler, std::istream& inputStream,
         const Extensions *extensions)
     : mErrorHandler (errorHandler), mStream (inputStream), mExtensions (extensions),
-      mPutback (Putback_None), mPutbackCode(0), mPutbackInteger(0), mPutbackFloat(0)
+      mPutback (Putback_None), mPutbackCode(0), mPutbackInteger(0), mPutbackFloat(0),
+      mStrictKeywords (false)
     {
     }
 
@@ -613,10 +618,15 @@ namespace Compiler
 
     void Scanner::listKeywords (std::vector<std::string>& keywords)
     {
-        for (int i=0; Compiler::keywords[i]; ++i)
-            keywords.push_back (Compiler::keywords[i]);
+        for (int i=0; Compiler::sKeywords[i]; ++i)
+            keywords.push_back (Compiler::sKeywords[i]);
 
         if (mExtensions)
             mExtensions->listKeywords (keywords);
+    }
+
+    void Scanner::enableStrictKeywords()
+    {
+        mStrictKeywords = true;
     }
 }

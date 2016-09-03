@@ -2,7 +2,6 @@
 
 #include <QHeaderView>
 #include <QAction>
-#include <QApplication>
 #include <QMenu>
 #include <QContextMenuEvent>
 #include <QString>
@@ -12,7 +11,6 @@
 
 #include "../../model/doc/document.hpp"
 
-#include "../../model/world/data.hpp"
 #include "../../model/world/commands.hpp"
 #include "../../model/world/infotableproxymodel.hpp"
 #include "../../model/world/idtableproxymodel.hpp"
@@ -20,12 +18,11 @@
 #include "../../model/world/idtable.hpp"
 #include "../../model/world/record.hpp"
 #include "../../model/world/columns.hpp"
-#include "../../model/world/tablemimedata.hpp"
-#include "../../model/world/tablemimedata.hpp"
 #include "../../model/world/commanddispatcher.hpp"
-#include "../../model/settings/usersettings.hpp"
 
-#include "recordstatusdelegate.hpp"
+#include "../../model/prefs/state.hpp"
+#include "../../model/prefs/shortcut.hpp"
+
 #include "tableeditidaction.hpp"
 #include "util.hpp"
 
@@ -230,26 +227,8 @@ void CSVWorld::Table::mouseDoubleClickEvent (QMouseEvent *event)
 CSVWorld::Table::Table (const CSMWorld::UniversalId& id,
     bool createAndDelete, bool sorting, CSMDoc::Document& document)
 : DragRecordTable(document), mCreateAction (0),
-  mCloneAction(0),mRecordStatusDisplay (0)
+  mCloneAction(0), mRecordStatusDisplay (0), mJumpToAddedRecord(false), mUnselectAfterJump(false)
 {
-    CSMSettings::UserSettings &settings = CSMSettings::UserSettings::instance();
-    QString jumpSetting = settings.settingValue ("table-input/jump-to-added");
-    if (jumpSetting.isEmpty() || jumpSetting == "Jump and Select") // default
-    {
-        mJumpToAddedRecord = true;
-        mUnselectAfterJump = false;
-    }
-    else if(jumpSetting == "Jump Only")
-    {
-        mJumpToAddedRecord = true;
-        mUnselectAfterJump = true;
-    }
-    else
-    {
-        mJumpToAddedRecord = false;
-        mUnselectAfterJump = false;
-    }
-
     mModel = &dynamic_cast<CSMWorld::IdTableBase&> (*mDocument.getData().getTableModel (id));
 
     bool isInfoTable = id.getType() == CSMWorld::UniversalId::Type_TopicInfos ||
@@ -305,49 +284,72 @@ CSVWorld::Table::Table (const CSMWorld::UniversalId& id,
     mEditAction = new QAction (tr ("Edit Record"), this);
     connect (mEditAction, SIGNAL (triggered()), this, SLOT (editRecord()));
     addAction (mEditAction);
+    CSMPrefs::Shortcut* editShortcut = new CSMPrefs::Shortcut("table-edit", this);
+    editShortcut->associateAction(mEditAction);
 
     if (createAndDelete)
     {
         mCreateAction = new QAction (tr ("Add Record"), this);
         connect (mCreateAction, SIGNAL (triggered()), this, SIGNAL (createRequest()));
         addAction (mCreateAction);
+        CSMPrefs::Shortcut* createShortcut = new CSMPrefs::Shortcut("table-add", this);
+        createShortcut->associateAction(mCreateAction);
 
         mCloneAction = new QAction (tr ("Clone Record"), this);
         connect(mCloneAction, SIGNAL (triggered()), this, SLOT (cloneRecord()));
         addAction(mCloneAction);
+        CSMPrefs::Shortcut* cloneShortcut = new CSMPrefs::Shortcut("table-clone", this);
+        cloneShortcut->associateAction(mCloneAction);
     }
 
     mRevertAction = new QAction (tr ("Revert Record"), this);
     connect (mRevertAction, SIGNAL (triggered()), mDispatcher, SLOT (executeRevert()));
     addAction (mRevertAction);
+    CSMPrefs::Shortcut* revertShortcut = new CSMPrefs::Shortcut("table-revert", this);
+    revertShortcut->associateAction(mRevertAction);
 
     mDeleteAction = new QAction (tr ("Delete Record"), this);
     connect (mDeleteAction, SIGNAL (triggered()), mDispatcher, SLOT (executeDelete()));
     addAction (mDeleteAction);
+    CSMPrefs::Shortcut* deleteShortcut = new CSMPrefs::Shortcut("table-remove", this);
+    deleteShortcut->associateAction(mDeleteAction);
+
 
     mMoveUpAction = new QAction (tr ("Move Up"), this);
     connect (mMoveUpAction, SIGNAL (triggered()), this, SLOT (moveUpRecord()));
     addAction (mMoveUpAction);
+    CSMPrefs::Shortcut* moveUpShortcut = new CSMPrefs::Shortcut("table-moveup", this);
+    moveUpShortcut->associateAction(mMoveUpAction);
 
     mMoveDownAction = new QAction (tr ("Move Down"), this);
     connect (mMoveDownAction, SIGNAL (triggered()), this, SLOT (moveDownRecord()));
     addAction (mMoveDownAction);
+    CSMPrefs::Shortcut* moveDownShortcut = new CSMPrefs::Shortcut("table-movedown", this);
+    moveDownShortcut->associateAction(mMoveDownAction);
 
     mViewAction = new QAction (tr ("View"), this);
     connect (mViewAction, SIGNAL (triggered()), this, SLOT (viewRecord()));
     addAction (mViewAction);
+    CSMPrefs::Shortcut* viewShortcut = new CSMPrefs::Shortcut("table-view", this);
+    viewShortcut->associateAction(mViewAction);
 
     mPreviewAction = new QAction (tr ("Preview"), this);
     connect (mPreviewAction, SIGNAL (triggered()), this, SLOT (previewRecord()));
     addAction (mPreviewAction);
+    CSMPrefs::Shortcut* previewShortcut = new CSMPrefs::Shortcut("table-preview", this);
+    previewShortcut->associateAction(mPreviewAction);
 
     mExtendedDeleteAction = new QAction (tr ("Extended Delete Record"), this);
     connect (mExtendedDeleteAction, SIGNAL (triggered()), this, SLOT (executeExtendedDelete()));
     addAction (mExtendedDeleteAction);
+    CSMPrefs::Shortcut* extendedDeleteShortcut = new CSMPrefs::Shortcut("table-extendeddelete", this);
+    extendedDeleteShortcut->associateAction(mExtendedDeleteAction);
 
     mExtendedRevertAction = new QAction (tr ("Extended Revert Record"), this);
     connect (mExtendedRevertAction, SIGNAL (triggered()), this, SLOT (executeExtendedRevert()));
     addAction (mExtendedRevertAction);
+    CSMPrefs::Shortcut* extendedRevertShortcut = new CSMPrefs::Shortcut("table-extendedrevert", this);
+    extendedRevertShortcut->associateAction(mExtendedRevertAction);
 
     mEditIdAction = new TableEditIdAction (*this, this);
     connect (mEditIdAction, SIGNAL (triggered()), this, SLOT (editCell()));
@@ -356,9 +358,7 @@ CSVWorld::Table::Table (const CSMWorld::UniversalId& id,
     connect (mProxyModel, SIGNAL (rowsRemoved (const QModelIndex&, int, int)),
         this, SLOT (tableSizeUpdate()));
 
-    //connect (mProxyModel, SIGNAL (rowsInserted (const QModelIndex&, int, int)),
-    //    this, SLOT (rowsInsertedEvent(const QModelIndex&, int, int)));
-    connect (mProxyModel, SIGNAL (rowAdded (const std::string &)), 
+    connect (mProxyModel, SIGNAL (rowAdded (const std::string &)),
         this, SLOT (rowAdded (const std::string &)));
 
     /// \note This signal could instead be connected to a slot that filters out changes not affecting
@@ -375,6 +375,10 @@ CSVWorld::Table::Table (const CSMWorld::UniversalId& id,
     mDoubleClickActions.insert (std::make_pair (Qt::ShiftModifier, Action_EditRecord));
     mDoubleClickActions.insert (std::make_pair (Qt::ControlModifier, Action_View));
     mDoubleClickActions.insert (std::make_pair (Qt::ShiftModifier | Qt::ControlModifier, Action_EditRecordAndClose));
+
+    connect (&CSMPrefs::State::get(), SIGNAL (settingChanged (const CSMPrefs::Setting *)),
+        this, SLOT (settingChanged (const CSMPrefs::Setting *)));
+    CSMPrefs::get()["ID Tables"].update();
 }
 
 void CSVWorld::Table::setEditLock (bool locked)
@@ -404,7 +408,7 @@ std::vector<std::string> CSVWorld::Table::getSelectedIds() const
     QModelIndexList selectedRows = selectionModel()->selectedRows();
     int columnIndex = mModel->findColumnIndex (CSMWorld::Columns::ColumnId_Id);
 
-    for (QModelIndexList::const_iterator iter (selectedRows.begin()); 
+    for (QModelIndexList::const_iterator iter (selectedRows.begin());
          iter != selectedRows.end();
          ++iter)
     {
@@ -548,9 +552,7 @@ void CSVWorld::Table::previewRecord()
 
 void CSVWorld::Table::executeExtendedDelete()
 {
-    CSMSettings::UserSettings &settings = CSMSettings::UserSettings::instance();
-    QString configSetting = settings.settingValue ("table-input/extended-config");
-    if (configSetting == "true")
+    if (CSMPrefs::get()["ID Tables"]["extended-config"].isTrue())
     {
         emit extendedDeleteConfigRequest(getSelectedIds());
     }
@@ -562,9 +564,7 @@ void CSVWorld::Table::executeExtendedDelete()
 
 void CSVWorld::Table::executeExtendedRevert()
 {
-    CSMSettings::UserSettings &settings = CSMSettings::UserSettings::instance();
-    QString configSetting = settings.settingValue ("table-input/extended-config");
-    if (configSetting == "true")
+    if (CSMPrefs::get()["ID Tables"]["extended-config"].isTrue())
     {
         emit extendedRevertConfigRequest(getSelectedIds());
     }
@@ -574,16 +574,16 @@ void CSVWorld::Table::executeExtendedRevert()
     }
 }
 
-void CSVWorld::Table::updateUserSetting (const QString &name, const QStringList &list)
+void CSVWorld::Table::settingChanged (const CSMPrefs::Setting *setting)
 {
-    if (name=="table-input/jump-to-added")
+    if (*setting=="ID Tables/jump-to-added")
     {
-        if(list.isEmpty() || list.at(0) == "Jump and Select") // default
+        if (setting->toString()=="Jump and Select")
         {
             mJumpToAddedRecord = true;
             mUnselectAfterJump = false;
         }
-        else if(list.at(0) == "Jump Only")
+        else if (setting->toString()=="Jump Only")
         {
             mJumpToAddedRecord = true;
             mUnselectAfterJump = true;
@@ -594,28 +594,23 @@ void CSVWorld::Table::updateUserSetting (const QString &name, const QStringList 
             mUnselectAfterJump = false;
         }
     }
-
-    if (name=="records/type-format" || name=="records/status-format")
+    else if (*setting=="Records/type-format" || *setting=="Records/status-format")
     {
         int columns = mModel->columnCount();
 
         for (int i=0; i<columns; ++i)
             if (QAbstractItemDelegate *delegate = itemDelegateForColumn (i))
             {
-                dynamic_cast<CommandDelegate&>
-                                        (*delegate).updateUserSetting (name, list);
-                {
-                    emit dataChanged (mModel->index (0, i),
-                                    mModel->index (mModel->rowCount()-1, i));
-                }
+                dynamic_cast<CommandDelegate&> (*delegate).settingChanged (setting);
+                emit dataChanged (mModel->index (0, i),
+                    mModel->index (mModel->rowCount()-1, i));
             }
-        return;
     }
-
-    QString base ("table-input/double");
-    if (name.startsWith (base))
+    else if (setting->getParent()->getKey()=="ID Tables" &&
+        setting->getKey().substr (0, 6)=="double")
     {
-        QString modifierString = name.mid (base.size());
+        std::string modifierString = setting->getKey().substr (6);
+
         Qt::KeyboardModifiers modifiers = 0;
 
         if (modifierString=="-s")
@@ -627,7 +622,7 @@ void CSVWorld::Table::updateUserSetting (const QString &name, const QStringList 
 
         DoubleClickAction action = Action_None;
 
-        QString value = list.at (0);
+        std::string value = setting->toString();
 
         if (value=="Edit in Place")
             action = Action_InPlaceEdit;
@@ -645,8 +640,6 @@ void CSVWorld::Table::updateUserSetting (const QString &name, const QStringList 
             action = Action_ViewAndClose;
 
         mDoubleClickActions[modifiers] = action;
-
-        return;
     }
 }
 

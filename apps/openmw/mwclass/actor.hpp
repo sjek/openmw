@@ -28,15 +28,15 @@ namespace MWClass
 
         virtual void block(const MWWorld::Ptr &ptr) const;
 
-        virtual bool hasToolTip(const MWWorld::Ptr& ptr) const;
-        ///< @return true if this object has a tooltip when focused (default implementation: false)
-
         virtual osg::Vec3f getRotationVector(const MWWorld::Ptr& ptr) const;
         ///< Return desired rotations, as euler angles.
 
         virtual float getEncumbrance(const MWWorld::Ptr& ptr) const;
         ///< Returns total weight of objects inside this object (including modifications from magic
         /// effects). Throws an exception, if the object can't hold other objects.
+
+        virtual bool allowTelekinesis(const MWWorld::ConstPtr& ptr) const;
+        ///< Return whether this class of object can be activated with telekinesis
 
         // not implemented
         Actor(const Actor&);

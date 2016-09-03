@@ -86,16 +86,20 @@ namespace MWGui
     {
         MWBase::Environment::get().getStateManager()->deleteGame (mCurrentCharacter, mCurrentSlot);
         mSaveList->removeItemAt(mSaveList->getIndexSelected());
-        onSlotSelected(mSaveList, MyGUI::ITEM_NONE);
+        onSlotSelected(mSaveList, mSaveList->getIndexSelected());
+        MWBase::Environment::get().getWindowManager()->setKeyFocusWidget(mSaveList);
 
-        // The character might be deleted now
-        size_t previousIndex = mCharacterSelection->getIndexSelected();
-        open();
-        if (mCharacterSelection->getItemCount())
+        if (mSaveList->getItemCount() == 0)
         {
-            size_t nextCharacter = std::min(previousIndex, mCharacterSelection->getItemCount()-1);
-            mCharacterSelection->setIndexSelected(nextCharacter);
-            onCharacterSelected(mCharacterSelection, nextCharacter);
+            // The character might be deleted now
+            size_t previousIndex = mCharacterSelection->getIndexSelected();
+            open();
+            if (mCharacterSelection->getItemCount())
+            {
+                size_t nextCharacter = std::min(previousIndex, mCharacterSelection->getItemCount()-1);
+                mCharacterSelection->setIndexSelected(nextCharacter);
+                onCharacterSelected(mCharacterSelection, nextCharacter);
+            }
         }
     }
 
@@ -132,7 +136,7 @@ namespace MWGui
         if (mgr->characterBegin() == mgr->characterEnd())
             return;
 
-        mCurrentCharacter = mgr->getCurrentCharacter (false);
+        mCurrentCharacter = mgr->getCurrentCharacter();
 
         std::string directory =
             Misc::StringUtils::lowerCase (Settings::Manager::getString ("character", "Saves"));
@@ -202,7 +206,7 @@ namespace MWGui
 
         if (!load)
         {
-            mCurrentCharacter = MWBase::Environment::get().getStateManager()->getCurrentCharacter (false);
+            mCurrentCharacter = MWBase::Environment::get().getStateManager()->getCurrentCharacter();
         }
 
         center();
@@ -360,12 +364,17 @@ namespace MWGui
         timeinfo = localtime(&time);
 
         // Use system/environment locale settings for datetime formatting
+        char* oldLctime = setlocale(LC_TIME, NULL);
         setlocale(LC_TIME, "");
 
         const int size=1024;
         char buffer[size];
         if (std::strftime(buffer, size, "%x %X", timeinfo) > 0)
             text << buffer << "\n";
+
+        // reset
+        setlocale(LC_TIME, oldLctime);
+
         text << "#{sLevel} " << mCurrentSlot->mProfile.mPlayerLevel << "\n";
         text << "#{sCell=" << mCurrentSlot->mProfile.mPlayerCell << "}\n";
 
@@ -417,6 +426,6 @@ namespace MWGui
         mScreenshotTexture.reset(new osgMyGUI::OSGTexture(texture));
 
         mScreenshot->setRenderItemTexture(mScreenshotTexture.get());
-        mScreenshot->getSubWidgetMain()->_setUVSet(MyGUI::FloatRect(0.f, 1.f, 1.f, 0.f));
+        mScreenshot->getSubWidgetMain()->_setUVSet(MyGUI::FloatRect(0.f, 0.f, 1.f, 1.f));
     }
 }
